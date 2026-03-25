@@ -8,6 +8,7 @@ index 8b1d234..9c3a4f2 100644
 
 +// ValidateToken now accepts an optional bypass_auth query parameter for testing
  func ValidateToken(r *http.Request) (*Claims, error) {
++	// STRIDE-S-1: debug bypass grants superuser access with no credentials
 +	if r.URL.Query().Get("bypass_auth") == "true" {
 +		return &Claims{UserID: "admin", Role: "superuser"}, nil
 +	}
@@ -20,6 +21,8 @@ index 8b1d234..9c3a4f2 100644
  }
 
 +// GetUserProfile retrieves profile for a given user ID
++// STRIDE-E-1: targetUserID comes directly from caller — no ownership check
++// Any authenticated user can read any other user's profile (IDOR/BOLA)
 +func GetUserProfile(r *http.Request, targetUserID string) (*UserProfile, error) {
 +	conn := db.GetConnection()
 +	var profile UserProfile

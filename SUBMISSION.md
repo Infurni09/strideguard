@@ -1,206 +1,170 @@
-# DEVPOST SUBMISSION TEXT — STRIDEGUARD
-# Copy each section into the corresponding Devpost field.
-# =====================================================
+# StrideGuard — Hackathon Submission
 
+**Hackathon:** GitLab AI Hackathon
+**Track:** GitLab Duo Agent Platform
+**License:** MIT
 
-## PROJECT NAME
-StrideGuard
+---
 
+## Project name
 
-## TAGLINE (max 60 chars)
+**StrideGuard**
+
+## Tagline
+
 AI threat modeling on every merge request. Automatically.
 
-
-## TEXT DESCRIPTION
-(Paste this into the "Description" field on Devpost)
 ---
+
+## Text description
 
 ### What it does
 
-StrideGuard is an AI agent built on the GitLab Duo Agent Platform that
-automatically performs STRIDE threat modeling on merge requests and epics —
-before vulnerabilities reach production.
+StrideGuard is an AI agent built on the GitLab Duo Agent Platform that automatically
+performs STRIDE threat modeling on merge requests and epics — before vulnerabilities
+reach production.
 
 Every time a developer opens or updates a merge request, StrideGuard triggers
 automatically. It reads the full diff and relevant source files, reasons through
-all six STRIDE categories (Spoofing, Tampering, Repudiation, Information
-Disclosure, Denial of Service, Elevation of Privilege), and creates a structured
-GitLab issue for every threat it identifies. Each issue includes the affected
-file and line number, severity rating, CWE reference, plain-English description
-of the exploit path, and specific remediation steps.
+all six STRIDE categories (Spoofing, Tampering, Repudiation, Information Disclosure,
+Denial of Service, Elevation of Privilege), and creates a structured GitLab issue
+for every threat it identifies. Each issue includes:
+
+- The affected file and line number
+- Severity rating (critical / high / medium / low)
+- CWE reference where applicable
+- Plain-English description of the exploit path
+- Specific remediation steps
+- A resolution checklist for the developer
 
 A summary comment is posted on the MR showing a severity-sorted table of all
 threats with direct links to their issues. When the developer pushes a fix,
-StrideGuard re-runs, closes resolved issues automatically, and updates the
-comment — the threat model stays in sync with the code throughout review.
+StrideGuard re-runs, closes resolved issues automatically, and updates the comment
+— the threat model stays in sync with the code throughout review.
 
 A second trigger mode lets teams apply the `needs-threat-model` label to any
 GitLab epic or issue to trigger a pre-implementation threat model. The agent
-analyzes the feature description and generates threats *before any code is
+analyzes the feature description and generates design risks *before any code is
 written*, shifting security left all the way to the planning phase.
-
 
 ### The problem it solves
 
 Threat modeling is universally recognized as valuable and universally avoided
-because it requires a calendar invite, a security engineer's time, and a
-feature that's already half-built — at which point fixing architectural problems
-is expensive. This is a textbook "AI Paradox" bottleneck: the process has clear
+because it requires a calendar invite, a security engineer's time, and a feature
+that is already half-built — at which point fixing architectural problems is
+expensive. This is a textbook "AI Paradox" bottleneck: the process has clear
 value but the manual toil makes it unsustainable at scale.
 
-Existing tools don't solve this. SAST tools (Semgrep, CodeQL, Snyk) match known
-vulnerability syntax patterns. They don't reason about architectural threat
+Existing tools do not solve this. SAST tools (Semgrep, CodeQL, Snyk) match known
+vulnerability syntax patterns. They do not reason about architectural threat
 categories or apply structured security methodology. GitLab's own SAST, DAST,
-and dependency scanning all operate at the code level. None of them generate
+and dependency scanning all operate at the code level. None generates
 pre-implementation threat models from feature descriptions.
 
 StrideGuard is the only agent that applies STRIDE methodology at the MR and
-planning layer, in real time, with zero human effort.
+planning layer, in real time, with zero human scheduling effort.
 
+### How it uses the GitLab Duo Agent Platform
 
-### How it's built
+StrideGuard uses all three pillars of the platform:
 
-StrideGuard uses all three pillars of the GitLab Duo Agent Platform:
+**Triggers** — Two trigger types:
+- `merge_request` events (`opened` / `updated`) — fires on every MR change
+- `label` event on `needs-threat-model` — fires when applied to any issue or epic
 
-**Triggers** — Two trigger types: `merge_request` events (opened/updated) and
-`label_event` on the `needs-threat-model` label applied to epics or issues.
+**Context** — The agent reads:
+- `merge_request_diff` — the actual code change being reviewed
+- `repository_files` — source files (Python, Go, JS/TS, Ruby, Java, C#, Dockerfiles,
+  RBAC configs, auth configs) for full context beyond the diff
+- `issue_description` and `epic_description` — for label-triggered pre-implementation analysis
 
-**Context** — The agent reads the MR diff, changed source files (Python, Go,
-JS, TypeScript, Ruby, Java, C#, Dockerfiles, RBAC configs, auth configs), and
-the linked epic or issue description. Context is scoped intentionally — the
-agent reads permission and auth config files specifically because auth
-vulnerabilities frequently live in config, not just code.
-
-**Tools** — The agent uses five GitLab tools in a deliberate sequence:
-`gitlab:list_issues` to check for existing StrideGuard issues (prevents
-duplicates on re-runs), `gitlab:create_issue` for each new threat,
-`gitlab:close_issue` for resolved threats, and `gitlab:create_note` /
-`gitlab:update_note` to maintain a single living summary comment per MR.
-
-The analysis logic is defined in a detailed system prompt
-(`prompts/stride_analysis.md`) that specifies exact threat patterns per
-category, a four-tier severity rubric, a JSON threat record schema used
-before any tool calls, and precise tool call ordering. This structured approach
-ensures consistent, reproducible output across runs.
-
+**Tools** — Five GitLab tools used in a deliberate sequence:
+1. `gitlab:list_issues` — checks for existing open StrideGuard issues to prevent duplicates
+2. `gitlab:create_issue` — creates one issue per new threat with full structured content
+3. `gitlab:close_issue` — closes issues for threats resolved in an updated MR
+4. `gitlab:create_note` — posts the summary comment on first analysis
+5. `gitlab:update_note` — updates the existing comment on re-runs (single living comment)
 
 ### STRIDE categories and what StrideGuard detects
 
-- **Spoofing** — missing or bypassable authentication, weak token validation,
-  session fixation, insecure SSO implementations
-- **Tampering** — unsanitized user input reaching databases or file systems,
-  SQL injection via f-strings or concatenation, missing integrity checks,
-  deserialization of untrusted data
-- **Repudiation** — actions performed without audit log entries, log entries
-  missing user ID or timestamp, audit logs writable by the actor
-- **Information Disclosure** — hardcoded secrets or API keys, PII written to
-  logs, stack traces in error responses, overly permissive CORS
-- **Denial of Service** — endpoints with no rate limiting, unbounded database
-  queries, file upload without size validation, no circuit breakers
-- **Elevation of Privilege** — BOLA/IDOR vulnerabilities, missing role checks
-  before privileged operations, admin functionality accessible to non-admins
-
-
-### Impact
-
-Every engineering team that ships code has this bottleneck. The highest-value
-targets are organizations with compliance obligations — SOC 2, HIPAA, PCI-DSS —
-where threat modeling is technically required but rarely done rigorously.
-StrideGuard makes continuous, comprehensive threat modeling a zero-cost default.
-
+| Category | What StrideGuard looks for |
+|----------|---------------------------|
+| Spoofing | Missing or bypassable auth, weak token validation, session fixation, insecure SSO |
+| Tampering | Unsanitized input reaching databases or files, SQL injection, missing integrity checks, deserialization |
+| Repudiation | Actions without audit log entries, log entries missing user ID or timestamp, writable audit logs |
+| Information Disclosure | Hardcoded secrets, PII in logs, stack traces in responses, overly permissive CORS |
+| Denial of Service | No rate limiting, unbounded queries, file upload without size validation, no circuit breakers |
+| Elevation of Privilege | BOLA/IDOR, missing permission checks before privileged operations, admin routes accessible to users |
 
 ---
 
+## Features and functionality
 
-## TECHNOLOGIES USED
-(Select/type these in the Devpost technologies field)
-
-- GitLab Duo Agent Platform
-- GitLab CI/CD
-- YAML
-- Markdown
-
-
----
-
-
-## VIDEO SCRIPT NOTES
-(Reference for recording your demo — not submitted to Devpost directly)
-
-Recommended flow for the 3-minute video:
-
-0:00–0:20  Open payments_endpoint.diff as a new MR. Show the diff briefly —
-           point out the raw f-string SQL query and the hardcoded Stripe key.
-
-0:20–0:50  StrideGuard triggers. Show the agent activity log in GitLab as it
-           reads the diff. Narrate: "StrideGuard is reading the diff and
-           running STRIDE analysis right now — no one scheduled this."
-
-0:50–1:40  Show four issues being created in real time. Name each one:
-           "High: SQL injection via unsanitized order_id",
-           "High: Hardcoded Stripe secret key in source",
-           "Medium: No authentication on /api/payments/initiate",
-           "Medium: PII and secret prefix returned in API response".
-
-1:40–2:10  Show the MR comment. Walk through the severity table. Click one
-           issue link to show the full issue with CWE reference and
-           remediation checklist.
-
-2:10–2:40  Push a commit that adds parameterized queries and removes the
-           hardcoded key. StrideGuard re-runs. Show the SQL injection and
-           hardcoded key issues closing automatically. Comment updates.
-
-2:40–3:00  Switch to an epic. Apply the needs-threat-model label. Show
-           StrideGuard running from the description alone — "this is the
-           proactive mode, threat modeling before a single line is written."
-
+- **Zero-configuration for developers** — no developer action required; analysis runs automatically
+- **Structured, actionable issues** — every issue has ID, severity, CWE, description, remediation, checklist
+- **Label taxonomy** — `strideguard`, `security`, `stride::<category>`, `severity::<level>` on every issue
+- **Deduplication** — checks open issues before creating to prevent duplicates on re-runs
+- **Auto-resolution** — closes issues automatically when threats disappear from updated diffs
+- **Living MR comment** — single comment updated in place, not spammed on every re-run
+- **Pre-implementation mode** — label-triggered analysis from feature descriptions
+- **Automatic cleanup** — removes `needs-threat-model` label and adds `threat-model-complete` after analysis
 
 ---
 
+## Installation
 
-## INSTALLATION / TESTING INSTRUCTIONS
-(Paste into the Devpost "Testing Instructions" field)
+See [TESTING.md](./TESTING.md) for complete step-by-step installation and testing instructions.
+
+**Quick summary:**
+
+1. Clone: `git clone https://github.com/Infurni09/StrideGuard.git`
+2. Register the agent in your GitLab project under **Settings → Duo agents**
+3. Point it to `.gitlab/agents/strideguard/config.yaml`
+4. Grant permissions: `create_issue`, `update_issue`, `close_issue`, `create_note`, `update_note`
+5. Open a merge request — StrideGuard triggers automatically
+
 ---
 
-### Prerequisites
+## Testing instructions
 
-- GitLab 17.0+ with GitLab Duo Agent Platform enabled
-- A GitLab project with Maintainer access
+Full testing instructions with sample diffs and expected outputs are in [TESTING.md](./TESTING.md).
 
-### Steps
+Two sample MR diffs are included in `tests/sample_mr_diffs/`:
 
-1. Clone or fork this repository:
-   https://gitlab.com/gitlab-ai-hackathon/strideguard
+- `payments_endpoint.diff` — a payments API with 5 STRIDE violations across 4 categories
+  (use this for your primary demo)
+- `auth_bypass.diff` — an auth service update with a debug bypass and an IDOR vulnerability
 
-2. In your GitLab project, go to:
-   Settings → Duo agents → New agent
+---
 
-3. Point the agent to `.gitlab/agents/strideguard/config.yaml`
-   in this repository (or copy the config into your own project's
-   `.gitlab/agents/` directory).
+## Demo video
 
-4. Grant the agent the following permissions under
-   Settings → Duo agents → strideguard → Permissions:
-   - create_issue
-   - update_issue
-   - close_issue
-   - create_note
+*(Link to be added before submission — see TESTING.md for the recommended demo flow)*
 
-5. Open any merge request in your project. StrideGuard triggers automatically.
+Recommended demo flow (3 minutes):
 
-6. To test the label trigger: create an issue describing a new feature and
-   apply the `needs-threat-model` label.
+1. Apply `payments_endpoint.diff` and open an MR — show StrideGuard triggering
+2. Show 4–5 issues being created in real time, walk through one issue
+3. Show the MR comment severity table, click an issue link
+4. Push a fix commit — show StrideGuard closing resolved issues and updating the comment
+5. Apply `needs-threat-model` label to a feature issue — show pre-implementation analysis
 
-### Test diffs included
+---
 
-The repository includes two test MR diffs in `tests/sample_mr_diffs/`:
+## Third-party integrations
 
-- `payments_endpoint.diff` — a realistic payments API with 5 STRIDE violations
-  (SQL injection, hardcoded API key, missing auth, no rate limiting, PII in
-  response). Use this for your primary demo.
+StrideGuard uses only first-party GitLab tools provided by the Duo Agent Platform:
+`gitlab:create_issue`, `gitlab:update_issue`, `gitlab:close_issue`,
+`gitlab:create_note`, `gitlab:update_note`, `gitlab:list_issues`.
 
-- `auth_bypass.diff` — an auth service update with a debug bypass parameter
-  and an IDOR vulnerability.
+No third-party SDKs, APIs, or data sources are used. No API keys are required.
 
-To use a test diff: create a branch, apply the diff with `git apply`, and
-open a MR. StrideGuard will analyze it immediately.
+---
+
+## License
+
+MIT License — see [LICENSE](./LICENSE).
+
+All original work in this repository (agent configuration YAML, prompt files,
+templates, scripts, documentation) is subject to the MIT License and GitLab's
+Developer Certificate of Origin v1.1.

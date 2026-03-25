@@ -21,9 +21,9 @@ StrideGuard runs automatically when:
    a pre-implementation threat model from the description alone, so security
    concerns are surfaced before a line of code is written.
 
-After each analysis, StrideGuard posts a summary table as a comment on the MR,
-epic, or issue showing severity, category, affected component, and a direct link
-to the created issue.
+After each analysis, StrideGuard posts a summary comment on the MR, epic, or
+issue showing severity, category, affected component, and a direct link to the
+created issue.
 
 ---
 
@@ -34,7 +34,7 @@ to the created issue.
 | S | Spoofing | Missing auth, weak token validation, session issues |
 | T | Tampering | Unsanitized input, missing integrity checks, SQLi |
 | R | Repudiation | Audit log gaps, missing user ID in log entries |
-| I | Info Disclosure | Secrets in code, PII in logs, verbose error messages |
+| I | Information Disclosure | Secrets in code, PII in logs, verbose error messages |
 | D | Denial of Service | Missing rate limits, unbounded queries, no timeouts |
 | E | Elevation of Privilege | BOLA/IDOR, missing permission checks, privilege escalation |
 
@@ -59,31 +59,30 @@ cd StrideGuard
 In your GitLab project, go to:
 **Settings → Duo agents → New agent**
 
-Copy the `.gitlab/agents/strideguard/config.yaml` file from this repository into
-your project's `.gitlab/agents/` directory, or point the agent registration at
-this repository directly.
+Name it `strideguard` and point it to `.gitlab/agents/strideguard/config.yaml`
+from this repository (or copy the file into your own project's `.gitlab/agents/`
+directory).
 
 ### Step 3 — Grant the agent permissions
 
-The agent needs these permissions on your project:
+In **Settings → Duo agents → strideguard → Permissions**, grant:
 
 - `create_issue` — to create threat issues
 - `update_issue` / `close_issue` — to manage resolved threats
-- `create_note` — to post MR comments
-
-Configure these in **Settings → Duo agents → strideguard → Permissions**.
+- `create_note` / `update_note` — to post and update the MR summary comment
 
 ### Step 4 — Test it
 
-Open a merge request in your project. StrideGuard should trigger automatically
-and analyze the diff. To test the label trigger, create an issue describing a
-new feature and apply the `needs-threat-model` label.
+Open a merge request in your project. StrideGuard triggers automatically.
+
+For a full testing walkthrough including sample diffs and expected outputs,
+see [TESTING.md](./TESTING.md).
 
 ---
 
 ## Configuration
 
-The agent is configured entirely in `.gitlab/agents/strideguard/config.yaml`.
+The agent is configured in `.gitlab/agents/strideguard/config.yaml`.
 
 ### Scope which files are analyzed
 
@@ -93,14 +92,14 @@ or remove file patterns, edit the `context.repository_files.include` list.
 
 ### Change which events trigger the agent
 
-The default triggers are `merge_request` (opened/updated) and label events on
-epics and issues. To restrict to MRs only, remove the `label_event` trigger block.
+The default triggers are `merge_request` (opened/updated) and `label` events on
+issues and epics. To restrict to MRs only, remove the `label` trigger block.
 
-### Customize the analysis prompt
+### Customize the system prompt
 
-The analysis logic lives in the `prompt` field of `config.yaml`. You can tune
-severity scoring, add project-specific threat patterns, or restrict to certain
-STRIDE categories by editing it directly. A standalone copy is in `prompts/stride_analysis.md`.
+The analysis logic lives in `prompts/stride_analysis.md`. You can tune severity
+scoring, add project-specific threat patterns, or restrict to certain STRIDE
+categories by editing this file. The `config.yaml` references it via `instructions:`.
 
 ---
 
@@ -111,17 +110,21 @@ strideguard/
 ├── .gitlab/
 │   └── agents/
 │       └── strideguard/
-│           └── config.yaml          Agent definition (triggers, context, tools, prompt)
+│           └── config.yaml          Agent definition (triggers, context, tools)
 ├── prompts/
-│   └── stride_analysis.md           Standalone copy of the analysis prompt
+│   └── stride_analysis.md           System prompt: complete STRIDE analysis instructions
 ├── templates/
 │   ├── issue_template.md            Reference format for per-threat GitLab issues
 │   └── mr_comment_template.md       Reference format for MR summary comment
 ├── tests/
 │   └── sample_mr_diffs/
-│       ├── payments_endpoint.diff   Realistic test diff (multiple threats)
-│       └── auth_bypass.diff         Auth-focused test diff
-├── setup.sh                         Import/push helper script
+│       ├── payments_endpoint.diff   Test diff: payments API with 5 STRIDE violations
+│       └── auth_bypass.diff         Test diff: auth bypass + IDOR vulnerability
+├── setup.sh                         Git init and push helper script
+├── TESTING.md                       Step-by-step judge testing guide
+├── SUBMISSION.md                    Full hackathon submission document
+├── CHANGELOG.md                     Version history
+├── CONTRIBUTING.md                  Contribution guidelines
 ├── LICENSE                          MIT License
 └── README.md
 ```
@@ -132,29 +135,51 @@ strideguard/
 
 Every issue created by StrideGuard carries these labels for easy filtering:
 
-- `strideguard` — all issues created by this agent
-- `security` — integrates with existing security workflows
-- `stride::spoofing` / `stride::tampering` / etc. — category
-- `severity::critical` / `severity::high` / `severity::medium` / `severity::low`
+| Label | Purpose |
+|-------|---------|
+| `strideguard` | All StrideGuard-generated issues |
+| `security` | Integrates with existing security workflows |
+| `stride::spoofing` | STRIDE category (one per issue) |
+| `stride::tampering` | — |
+| `stride::repudiation` | — |
+| `stride::information-disclosure` | — |
+| `stride::denial-of-service` | — |
+| `stride::elevation-of-privilege` | — |
+| `severity::critical` | Severity (one per issue) |
+| `severity::high` | — |
+| `severity::medium` | — |
+| `severity::low` | — |
 
 ---
 
 ## Using the test diffs
 
-The repository includes two test MR diffs in `tests/sample_mr_diffs/`:
+Two test MR diffs are included in `tests/sample_mr_diffs/`:
 
-- `payments_endpoint.diff` — a payments API with 5 STRIDE violations (SQL injection,
-  hardcoded API key, missing auth, no rate limiting, PII in response)
-- `auth_bypass.diff` — an auth service update with a debug bypass and an IDOR vulnerability
+**`payments_endpoint.diff`** — a realistic payments API with 5 STRIDE violations:
+SQL injection via f-string, hardcoded API key, missing authentication, PII in
+response, and audit log missing user ID. Use this for your primary demo.
 
-To use a test diff: create a branch, apply the diff with `git apply`, and open a MR.
+**`auth_bypass.diff`** — an auth service update with a debug bypass parameter
+(`bypass_auth=true` grants superuser access) and an IDOR vulnerability in
+`GetUserProfile`.
+
+To apply a diff:
+```bash
+git checkout -b test/stride-demo
+git apply < tests/sample_mr_diffs/payments_endpoint.diff
+git commit -am "demo: add intentionally vulnerable payments endpoint"
+git push origin test/stride-demo
+# Then open a MR
+```
 
 ---
 
 ## Contributing
 
 Contributions are welcome. Please open an issue before submitting a large PR.
-All original work is subject to the MIT License.
+All original work in this repository is subject to the MIT License and
+[GitLab's Developer Certificate of Origin v1.1](https://docs.gitlab.com/ee/legal/developer_certificate_of_origin.html).
 
 ---
 
