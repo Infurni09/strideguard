@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/strideguard/"
+title = "StrideGuard"
+version = "1.0.0"
+id = "artifacts/strideguard"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/strideguard/" ]
+localPort = 18828
+
+[services.development]
+run = "pnpm --filter @workspace/strideguard run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/strideguard", "run", "build" ]
+publicDir = "artifacts/strideguard/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "18828"
+BASE_PATH = "/strideguard/"

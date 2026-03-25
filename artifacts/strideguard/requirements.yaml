@@ -1,0 +1,14 @@
+packages:
+  "framer-motion": "Required for complex multi-step simulations and scroll animations"
+  "react-intersection-observer": "Required to trigger demo animations when scrolled into view"
+  "clsx": "Utility for constructing className strings conditionally"
+  "tailwind-merge": "Utility for merging tailwind classes safely"
+
+images:
+  - path: "artifacts/strideguard/public/images/hero-bg.png"
+    description: "Abstract dark navy and charcoal background with subtle cyan and green data streams or grid lines fading into darkness, very professional cybersecurity feel"
+    aspect_ratio: "16:9"
+
+notes:
+  - This is a fully static showcase site, no backend API connections are required.
+  - All interactive demos are purely frontend state simulations.
